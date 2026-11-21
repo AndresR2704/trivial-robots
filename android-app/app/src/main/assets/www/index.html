@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Trivial Robots</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo"></span>Trivial Robots</div>
+    <div class="top-actions">
+      <span id="conn" class="pill off" title="Connexion au maître">Maître déconnecté</span>
+      <button id="btn-manual" class="ghost">Mode manuel</button>
+      <button id="btn-skip" class="ghost hidden">Passer le tour</button>
+      <button id="btn-new" class="ghost hidden">Nouvelle partie</button>
+    </div>
+  </header>
+
+  <!-- ===== Configuration ===== -->
+  <main id="screen-setup" class="screen">
+    <section class="card setup">
+      <h1>Nouvelle partie</h1>
+      <div id="resume-box" class="resume hidden">
+        <span>Une partie est en cours.</span>
+        <button id="btn-resume" class="primary">Reprendre la partie</button>
+      </div>
+
+      <h2>Équipes</h2>
+      <div id="team-list" class="team-list"></div>
+      <button id="btn-add-team" class="ghost wide">+ Ajouter une équipe</button>
+
+      <details class="advanced">
+        <summary>Connexion</summary>
+        <label>Adresse du maître
+          <input id="master-url" type="text" value="ws://192.168.4.1:81" autocomplete="off">
+        </label>
+        <p class="hint">Connecte d'abord la tablette au WiFi <b>TrivialRobots</b>.</p>
+      </details>
+
+      <button id="btn-start" class="primary big wide">Lancer l'animation et démarrer</button>
+    </section>
+  </main>
+
+  <!-- ===== Partie ===== -->
+  <main id="screen-game" class="screen hidden">
+    <aside id="scoreboard" class="scoreboard"></aside>
+    <section id="stage" class="stage card"></section>
+  </main>
+
+  <!-- ===== Mode manuel ===== -->
+  <main id="screen-manual" class="screen hidden">
+    <section class="card manual">
+      <h1>Mode manuel</h1>
+      <p class="hint">Pour placer les robots ou les tester. Chaque appui = 1 case.</p>
+      <div id="manual-robots" class="seg"></div>
+      <div id="manual-pad"></div>
+      <div class="row">
+        <button id="m-anim" class="ghost">Animation départ</button>
+        <button id="m-win" class="ghost">Animation victoire</button>
+        <button id="m-stop" class="danger">STOP</button>
+      </div>
+      <button id="m-back" class="primary wide">Retour</button>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="questions.js"></script>
+  <script src="game.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+// Banque de questions. Ajoute/modifie librement.
+// c = catégorie : 0 Géographie, 1 Divertissement, 2 Histoire,
+//                 3 Arts & Littérature, 4 Sciences & Nature, 5 Sports & Loisirs
+window.CATEGORIES = [
+  { name: "Géographie",          color: "#2f7de1" },
+  { name: "Divertissement",      color: "#e84a9a" },
+  { name: "Histoire",            color: "#f2c230" },
+  { name: "Arts & Littérature",  color: "#9c6b3c" },
+  { name: "Sciences & Nature",   color: "#2fb36d" },
+  { name: "Sports & Loisirs",    color: "#f28a2e" },
+];
+
+window.QUESTIONS = [
+  // ---- Géographie ----
+  { c: 0, q: "Quelle est la capitale de l'Australie ?", a: "Canberra" },
+  { c: 0, q: "Quel est le plus long fleuve de France ?", a: "La Loire" },
+  { c: 0, q: "Dans quel pays se trouve le Kilimandjaro ?", a: "La Tanzanie" },
+  { c: 0, q: "Quelle est la capitale du Canada ?", a: "Ottawa" },
+  { c: 0, q: "Quel est le plus petit pays du monde ?", a: "Le Vatican" },
+  { c: 0, q: "Quel détroit sépare l'Espagne du Maroc ?", a: "Le détroit de Gibraltar" },
+  { c: 0, q: "Combien de départements compte la France métropolitaine ?", a: "96" },
+  { c: 0, q: "Quel est le plus haut sommet des Alpes ?", a: "Le mont Blanc" },
+  { c: 0, q: "Quelle ville est surnommée « la Grosse Pomme » ?", a: "New York" },
+  { c: 0, q: "Dans quel pays se trouve le Machu Picchu ?", a: "Le Pérou" },
+  { c: 0, q: "Quel fleuve traverse Bayonne avec la Nive ?", a: "L'Adour" },
+  { c: 0, q: "Quel océan borde la côte basque ?", a: "L'océan Atlantique" },
+
+  // ---- Divertissement ----
+  { c: 1, q: "Quel plombier moustachu est la mascotte de Nintendo ?", a: "Mario" },
+  { c: 1, q: "Dans « Le Seigneur des anneaux », quel hobbit porte l'Anneau ?", a: "Frodon" },
+  { c: 1, q: "Quel groupe britannique a chanté « Bohemian Rhapsody » ?", a: "Queen" },
+  { c: 1, q: "Quel droïde doré accompagne R2-D2 dans Star Wars ?", a: "C-3PO" },
+  { c: 1, q: "Quel film Pixar met en scène un petit robot nettoyeur sur une Terre abandonnée ?", a: "WALL-E" },
+  { c: 1, q: "Quel jeu vidéo de construction en blocs a été créé par Markus « Notch » Persson ?", a: "Minecraft" },
+  { c: 1, q: "Comment s'appelle le chien de Tintin ?", a: "Milou" },
+  { c: 1, q: "Quel acteur incarne Iron Man dans les films Marvel ?", a: "Robert Downey Jr." },
+  { c: 1, q: "Dans quelle ville se déroule la série « Breaking Bad » ?", a: "Albuquerque" },
+  { c: 1, q: "Quelle récompense est remise au meilleur film du Festival de Cannes ?", a: "La Palme d'or" },
+  { c: 1, q: "Quelle console de Sony est sortie au Japon en 1994 ?", a: "La PlayStation" },
+  { c: 1, q: "Quel est le nom du sorcier à lunettes créé par J.K. Rowling ?", a: "Harry Potter" },
+
+  // ---- Histoire ----
+  { c: 2, q: "En quelle année a eu lieu la prise de la Bastille ?", a: "1789" },
+  { c: 2, q: "Qui fut le premier homme à marcher sur la Lune ?", a: "Neil Armstrong (1969)" },
+  { c: 2, q: "En quelle année est tombé le mur de Berlin ?", a: "1989" },
+  { c: 2, q: "Sur quelle île Napoléon Ier est-il mort en exil ?", a: "Sainte-Hélène" },
+  { c: 2, q: "En quelle année a commencé la Première Guerre mondiale ?", a: "1914" },
+  { c: 2, q: "Quel paquebot a coulé en 1912 après avoir heurté un iceberg ?", a: "Le Titanic" },
+  { c: 2, q: "Qui fut le premier président de la Ve République ?", a: "Charles de Gaulle" },
+  { c: 2, q: "En quelle année Christophe Colomb a-t-il atteint l'Amérique ?", a: "1492" },
+  { c: 2, q: "Quelle reine de France a été guillotinée en 1793 ?", a: "Marie-Antoinette" },
+  { c: 2, q: "Dans quelle région française a eu lieu le débarquement allié du 6 juin 1944 ?", a: "La Normandie" },
+  { c: 2, q: "Quel était l'ancien nom d'Istanbul, capitale de l'Empire byzantin ?", a: "Constantinople" },
+  { c: 2, q: "Quel peuple a construit les pyramides de Gizeh ?", a: "Les anciens Égyptiens" },
+
+  // ---- Arts & Littérature ----
+  { c: 3, q: "Qui a peint « La Joconde » ?", a: "Léonard de Vinci" },
+  { c: 3, q: "Qui a écrit « Les Misérables » ?", a: "Victor Hugo" },
+  { c: 3, q: "Dans quel musée parisien est exposée la Joconde ?", a: "Le Louvre" },
+  { c: 3, q: "Qui a écrit « Le Petit Prince » ?", a: "Antoine de Saint-Exupéry" },
+  { c: 3, q: "Quel peintre néerlandais a peint « La Nuit étoilée » ?", a: "Vincent van Gogh" },
+  { c: 3, q: "Qui a sculpté « Le Penseur » ?", a: "Auguste Rodin" },
+  { c: 3, q: "Quel auteur a créé le détective Sherlock Holmes ?", a: "Arthur Conan Doyle" },
+  { c: 3, q: "Qui a composé « Les Quatre Saisons » ?", a: "Antonio Vivaldi" },
+  { c: 3, q: "Quel architecte a conçu la Sagrada Família à Barcelone ?", a: "Antoni Gaudí" },
+  { c: 3, q: "Qui a écrit « Vingt mille lieues sous les mers » ?", a: "Jules Verne" },
+  { c: 3, q: "Quel peintre espagnol a peint « Guernica » ?", a: "Pablo Picasso" },
+  { c: 3, q: "Qui a écrit « Roméo et Juliette » ?", a: "William Shakespeare" },
+
+  // ---- Sciences & Nature ----
+  { c: 4, q: "Quel est le symbole chimique de l'or ?", a: "Au" },
+  { c: 4, q: "Quelle est la planète la plus proche du Soleil ?", a: "Mercure" },
+  { c: 4, q: "Combien d'os compte le squelette d'un adulte ?", a: "206" },
+  { c: 4, q: "Quel gaz les plantes absorbent-elles pour la photosynthèse ?", a: "Le dioxyde de carbone (CO₂)" },
+  { c: 4, q: "Quelle est l'unité de la résistance électrique ?", a: "L'ohm (Ω)" },
+  { c: 4, q: "Quel est le plus grand animal du monde ?", a: "La baleine bleue" },
+  { c: 4, q: "Combien de pattes a une araignée ?", a: "8" },
+  { c: 4, q: "Quelle loi s'écrit U = R × I ?", a: "La loi d'Ohm" },
+  { c: 4, q: "Quel scientifique a formulé la théorie de la relativité ?", a: "Albert Einstein" },
+  { c: 4, q: "Quelle est la formule chimique de l'eau ?", a: "H₂O" },
+  { c: 4, q: "Combien de bits contient un octet ?", a: "8" },
+  { c: 4, q: "À quelle vitesse (environ) se déplace la lumière dans le vide ?", a: "Environ 300 000 km/s" },
+
+  // ---- Sports & Loisirs ----
+  { c: 5, q: "Combien de joueurs par équipe sont sur le terrain au rugby à XV ?", a: "15" },
+  { c: 5, q: "Tous les combien d'années ont lieu les Jeux olympiques d'été ?", a: "Tous les 4 ans" },
+  { c: 5, q: "Quel pays a remporté la Coupe du monde de football 2018 ?", a: "La France" },
+  { c: 5, q: "Combien de cases compte un échiquier ?", a: "64" },
+  { c: 5, q: "Quelle spécialité de pelote basque se joue avec un gant en osier appelé chistera ?", a: "La cesta punta" },
+  { c: 5, q: "Dans quel sport utilise-t-on un volant ?", a: "Le badminton" },
+  { c: 5, q: "Combien de points vaut un essai au rugby ?", a: "5 points" },
+  { c: 5, q: "Quel tournoi du Grand Chelem se joue sur terre battue à Paris ?", a: "Roland-Garros" },
+  { c: 5, q: "Dans quel sport réalise-t-on un « strike » en renversant toutes les quilles ?", a: "Le bowling" },
+  { c: 5, q: "Combien de joueurs par équipe sont sur le terrain au basket ?", a: "5" },
+  { c: 5, q: "Quelle course cycliste se termine traditionnellement sur les Champs-Élysées ?", a: "Le Tour de France" },
+  { c: 5, q: "Combien de faces a un dé classique ?", a: "6" },
+];
