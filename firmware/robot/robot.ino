@@ -13,10 +13,21 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <esp_arduino_version.h>
-#include "protocol.h"
+#include <trivial_protocol.h>   // firmware/lib/TrivialProtocol
+
+// 1er argument du callback de réception ESP-NOW selon la version du cœur.
+// Type déclaré ici (avant toute fonction) pour que les prototypes générés
+// automatiquement depuis le .ino (IDE Arduino, PlatformIO) le connaissent.
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+typedef const esp_now_recv_info_t* RecvSource;  // cœur 3.x : infos de réception
+#else
+typedef const uint8_t* RecvSource;              // cœur 2.x : adresse MAC de l'émetteur
+#endif
 
 // ---------- Identité ----------
+#ifndef ROBOT_ID            // PlatformIO : fourni par l'environnement (pio run -e robot3)
 #define ROBOT_ID 1          // 1 à 6, UNIQUE par robot
+#endif
 
 // ---------- Câblage moteurs ----------
 // Driver à 2 entrées PWM par moteur (DRV8833, L9110S, L298N avec ENA/ENB pontés).
@@ -126,11 +137,7 @@ void handlePacket(const uint8_t* data, int len) {
   xQueueSend(cmdQueue, &c, 0);       // ne bloque jamais dans le callback
 }
 
-#if ESP_ARDUINO_VERSION_MAJOR >= 3
-void onRecv(const esp_now_recv_info_t* info, const uint8_t* data, int len) { handlePacket(data, len); }
-#else
-void onRecv(const uint8_t* mac, const uint8_t* data, int len) { handlePacket(data, len); }
-#endif
+void onRecv(RecvSource src, const uint8_t* data, int len) { handlePacket(data, len); }
 
 // ---------- Setup / loop ----------
 void setup() {

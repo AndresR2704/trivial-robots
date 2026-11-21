@@ -1,0 +1,15 @@
+# Fins de ligne normalisées (LF dans le dépôt)
+* text=auto
+
+# Scripts shell : toujours LF (sinon échec sous Linux / CI)
+*.sh   text eol=lf
+gradlew text eol=lf
+
+# Scripts Windows : toujours CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+
+# Binaires
+*.jar  binary
+*.jpg  binary
+*.png  binary

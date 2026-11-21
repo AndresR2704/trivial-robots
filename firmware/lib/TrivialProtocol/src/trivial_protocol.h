@@ -1,5 +1,5 @@
-// protocol.h : protocole ESP-NOW commun au maître et aux robots.
-// Ce fichier doit être IDENTIQUE dans firmware/maitre et firmware/robot.
+// trivial_protocol.h : protocole ESP-NOW commun au maître et aux robots.
+// Source UNIQUE, partagée par firmware/maitre et firmware/robot (bibliothèque TrivialProtocol).
 #pragma once
 #include <stdint.h>
 

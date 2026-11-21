@@ -1,0 +1,22 @@
+{
+  "name": "trivial-robots-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interface tablette de Trivial Robots (embarquée dans l'APK Android)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --serve",
+    "typecheck": "tsc",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "check": "npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

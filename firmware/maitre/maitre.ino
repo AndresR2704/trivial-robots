@@ -11,7 +11,7 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <WebSocketsServer.h>
-#include "protocol.h"
+#include <trivial_protocol.h>   // firmware/lib/TrivialProtocol
 
 // ---------- Réglages ----------
 const char* AP_SSID = "TrivialRobots";

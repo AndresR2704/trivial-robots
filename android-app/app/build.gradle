@@ -2,6 +2,51 @@ plugins {
     id 'com.android.application'
 }
 
+// ---------- Interface web (../../web) ----------
+// Compilée automatiquement avant chaque build Android (Node.js requis).
+// Sortie : web/dist/www, embarquée dans l'APK sous assets/www.
+def webDir = rootProject.file('../web')
+def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
+def npm = { List<String> args -> (isWindows ? ['cmd', '/c', 'npm'] : ['npm']) + args }
+
+def npmInstall = tasks.register('npmInstall', Exec) {
+    group = 'web'
+    description = 'Installe les dépendances npm de l\'interface web.'
+    workingDir webDir
+    commandLine npm(['ci', '--no-audit', '--no-fund'])
+    inputs.file(new File(webDir, 'package-lock.json'))
+    outputs.file(new File(webDir, 'node_modules/.package-lock.json'))
+}
+
+def buildWeb = tasks.register('buildWeb', Exec) {
+    group = 'web'
+    description = 'Compile l\'interface web (TypeScript) dans web/dist/www.'
+    dependsOn npmInstall
+    workingDir webDir
+    commandLine npm(['run', 'build'])
+    inputs.dir(new File(webDir, 'src'))
+    inputs.dir(new File(webDir, 'public'))
+    inputs.file(new File(webDir, 'build.mjs'))
+    inputs.file(new File(webDir, 'package-lock.json'))
+    outputs.dir(new File(webDir, 'dist'))
+}
+
+tasks.named('preBuild') { dependsOn buildWeb }
+
+// ---------- Signature release ----------
+// Lue dans android-app/keystore.properties (jamais commité) ou dans les
+// variables d'environnement TR_* (CI GitHub). Sans clé : APK release non signé.
+def keystoreProps = new Properties()
+def keystorePropsFile = rootProject.file('keystore.properties')
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+def signingValue = { String key, String envName -> keystoreProps.getProperty(key) ?: System.getenv(envName) }
+def keystorePath = signingValue('storeFile', 'TR_KEYSTORE_FILE')
+
+// Numéro de build : numéro du run GitHub Actions, 1 en local.
+def buildNumber = (System.getenv('GITHUB_RUN_NUMBER') ?: '1') as int
+
 android {
     namespace 'fr.asso.trivialrobots'
     compileSdk 34
@@ -10,13 +55,33 @@ android {
         applicationId 'fr.asso.trivialrobots'
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode buildNumber
+        versionName "1.0.${buildNumber}"
+    }
+
+    sourceSets {
+        main {
+            assets.srcDirs += new File(webDir, 'dist')
+        }
+    }
+
+    signingConfigs {
+        if (keystorePath) {
+            release {
+                storeFile rootProject.file(keystorePath)
+                storePassword signingValue('storePassword', 'TR_KEYSTORE_PASSWORD')
+                keyAlias signingValue('keyAlias', 'TR_KEY_ALIAS')
+                keyPassword signingValue('keyPassword', 'TR_KEY_PASSWORD')
+            }
+        }
     }
 
     buildTypes {
         release {
             minifyEnabled false
+            if (keystorePath) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 

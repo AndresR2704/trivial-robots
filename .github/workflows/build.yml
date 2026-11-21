@@ -1,0 +1,115 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # ---------- Interface web : typage + tests des règles du jeu ----------
+  web:
+    name: Interface web (tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+
+  # ---------- APK Android (l'interface web est compilée par Gradle) ----------
+  android:
+    name: APK Android
+    needs: web
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEYSTORE: ${{ secrets.TR_KEYSTORE_BASE64 != '' }}
+    defaults:
+      run:
+        working-directory: android-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: APK debug
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: APK release signé
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.TR_KEYSTORE_BASE64 }}
+          TR_KEYSTORE_FILE: ${{ runner.temp }}/release.jks
+          TR_KEYSTORE_PASSWORD: ${{ secrets.TR_KEYSTORE_PASSWORD }}
+          TR_KEY_ALIAS: ${{ secrets.TR_KEY_ALIAS }}
+          TR_KEY_PASSWORD: ${{ secrets.TR_KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$TR_KEYSTORE_FILE"
+          ./gradlew assembleRelease --no-daemon
+          rm -f "$TR_KEYSTORE_FILE"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TrivialRobots-debug-apk
+          path: android-app/app/build/outputs/apk/debug/app-debug.apk
+
+      - uses: actions/upload-artifact@v4
+        if: env.HAS_KEYSTORE == 'true'
+        with:
+          name: TrivialRobots-release-apk
+          path: android-app/app/build/outputs/apk/release/app-release.apk
+
+  # ---------- Firmwares ESP32 (PlatformIO) ----------
+  firmware:
+    name: Firmwares ESP32
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('firmware/*/platformio.ini') }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install platformio
+
+      - name: Compiler le maître
+        run: pio run -d firmware/maitre
+
+      - name: Compiler les 6 robots
+        run: pio run -d firmware/robot -e robot1 -e robot2 -e robot3 -e robot4 -e robot5 -e robot6
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TrivialRobots-firmwares
+          path: |
+            firmware/maitre/.pio/build/*/firmware.bin
+            firmware/robot/.pio/build/*/firmware.bin

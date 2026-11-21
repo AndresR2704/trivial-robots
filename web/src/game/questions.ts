@@ -1,7 +1,9 @@
 // Banque de questions. Ajoute/modifie librement.
 // c = catégorie : 0 Géographie, 1 Divertissement, 2 Histoire,
 //                 3 Arts & Littérature, 4 Sciences & Nature, 5 Sports & Loisirs
-window.CATEGORIES = [
+import type { Category, Question } from "./game.ts";
+
+export const CATEGORIES: readonly Category[] = [
   { name: "Géographie",          color: "#2f7de1" },
   { name: "Divertissement",      color: "#e84a9a" },
   { name: "Histoire",            color: "#f2c230" },
@@ -10,7 +12,7 @@ window.CATEGORIES = [
   { name: "Sports & Loisirs",    color: "#f28a2e" },
 ];
 
-window.QUESTIONS = [
+export const QUESTIONS: readonly Question[] = [
   // ---- Géographie ----
   { c: 0, q: "Quelle est la capitale de l'Australie ?", a: "Canberra" },
   { c: 0, q: "Quel est le plus long fleuve de France ?", a: "La Loire" },
