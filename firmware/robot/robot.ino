@@ -53,6 +53,21 @@ int heading = 0;
 QueueHandle_t cmdQueue;
 volatile int lastSeq = -1;
 
+// Heartbeat : annonce au maître que ce robot est en ligne.
+const uint8_t BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+uint8_t hbSeq = 0;
+uint32_t lastHeartbeat = 0;
+
+void sendHeartbeat() {
+  TrPacket p;
+  p.magic  = TR_MAGIC;
+  p.target = ROBOT_ID;      // ID source (voir trivial_protocol.h)
+  p.cmd    = TR_CMD_HEARTBEAT;
+  p.seq    = ++hbSeq;
+  esp_now_send(BROADCAST, (const uint8_t*)&p, sizeof(p));
+  lastHeartbeat = millis();
+}
+
 // ---------- Moteurs ----------
 void motorRaw(int in1, int in2, int speed, bool invert) {
   if (invert) speed = -speed;
@@ -162,14 +177,27 @@ void setup() {
   }
   esp_now_register_recv_cb(onRecv);
 
+  // Déclare le broadcast comme peer pour pouvoir émettre les heartbeats.
+  esp_now_peer_info_t peer = {};
+  memcpy(peer.peer_addr, BROADCAST, 6);
+  peer.channel = TR_WIFI_CHANNEL;
+  peer.ifidx   = WIFI_IF_STA;
+  peer.encrypt = false;
+  esp_now_add_peer(&peer);
+
+  hbSeq = (uint8_t)esp_random();
+
   Serial.printf("Robot %d pret, MAC %s, canal %d\n", ROBOT_ID,
                 WiFi.macAddress().c_str(), TR_WIFI_CHANNEL);
   blink(ROBOT_ID, 150);   // la LED clignote ID fois au démarrage
+  sendHeartbeat();        // annonce immédiatement sa présence
 }
 
 void loop() {
   uint8_t cmd;
-  if (xQueueReceive(cmdQueue, &cmd, portMAX_DELAY) == pdTRUE) {
+  // Attente d'une commande avec un timeout court : on reprend la main
+  // régulièrement pour émettre le heartbeat, même sans mouvement.
+  if (xQueueReceive(cmdQueue, &cmd, pdMS_TO_TICKS(TR_HEARTBEAT_MS)) == pdTRUE) {
     Serial.printf("cmd %u\n", cmd);
     switch (cmd) {
       case TR_CMD_UP:    moveDir(0); break;
@@ -181,4 +209,5 @@ void loop() {
       case TR_CMD_STOP:  stopMotors(); break;
     }
   }
+  if (millis() - lastHeartbeat >= TR_HEARTBEAT_MS) sendHeartbeat();
 }

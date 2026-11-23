@@ -47,6 +47,29 @@ body {
 .pill.off { color: var(--ko); background: rgba(229, 72, 77, .12); }
 .pill.wait { color: #f2c230; background: rgba(242, 194, 48, .12); }
 
+/* Bandeau d'état des robots (barre du haut) */
+.robot-status { display: flex; gap: 6px; align-items: center; }
+.robot-status .r {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 800; color: #0f1420;
+  background: var(--robot);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .06), 0 0 10px -2px var(--robot);
+  transition: opacity .25s, filter .25s, box-shadow .25s;
+}
+.robot-status .r[data-offline] {
+  background: #3a4257; color: #6b7591;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .03);
+  opacity: .55;
+}
+
+/* Dimming des sélecteurs de robot (équipes, mode manuel) lorsqu'ils sont hors-ligne. */
+.team-dot[data-offline], #manual-robots button[data-offline] { opacity: .4; filter: grayscale(.6); }
+
+/* Badge "hors-ligne" dans le tableau des scores, visible seulement si data-offline. */
+.offline-tag { display: none; color: var(--ko); font-weight: 700; }
+[data-offline] .offline-tag { display: inline; }
+
 /* ---------- Boutons ---------- */
 button {
   font: inherit; color: var(--text); border: 0; cursor: pointer;

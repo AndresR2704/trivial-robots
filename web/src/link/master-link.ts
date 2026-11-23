@@ -5,9 +5,14 @@ import { cmd } from "./commands.ts";
 
 export type LinkState = "on" | "off" | "wait";
 
+/** Nombre de robots (doit rester aligné avec TR_ROBOT_COUNT côté firmware). */
+export const ROBOT_COUNT = 6;
+
 export interface LinkEvents {
   /** Changement d'état de la connexion (pastille de la barre du haut). */
   onState(state: LinkState, label: string): void;
+  /** État en ligne / hors ligne de chaque robot (index 0 = robot 1, …). */
+  onRobots(online: readonly boolean[]): void;
   /** Message à afficher à l'opérateur (erreur maître, liaison absente). */
   notify(message: string): void;
 }
@@ -16,9 +21,12 @@ const RETRY_MS = 2000;      // délai avant reconnexion
 const PING_MS = 4000;       // période du keepalive
 const RX_TIMEOUT_MS = 10000; // silence au-delà duquel la connexion est relancée
 
+const ALL_OFFLINE: readonly boolean[] = Object.freeze(new Array(ROBOT_COUNT).fill(false));
+
 export class MasterLink {
   url: string;
   open = false;
+  online: readonly boolean[] = ALL_OFFLINE;
   private ws: WebSocket | null = null;
   private lastRx = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -65,11 +73,21 @@ export class MasterLink {
     ws.onmessage = (ev) => {
       this.lastRx = Date.now();
       const m = String(ev.data);
+      if (m.startsWith("STATUS ")) {
+        const online = m.slice(7).split(",").map(x => x.trim() === "1");
+        // Normalise à ROBOT_COUNT entrées (tolérant aux versions futures).
+        while (online.length < ROBOT_COUNT) online.push(false);
+        this.online = online.slice(0, ROBOT_COUNT);
+        this.events.onRobots(this.online);
+        return;
+      }
       if (m.startsWith("ERR")) this.events.notify("Maître : " + m);
     };
     ws.onerror = () => { /* suivi d'un onclose */ };
     ws.onclose = () => {
       this.open = false;
+      this.online = ALL_OFFLINE;
+      this.events.onRobots(this.online);
       this.events.onState("off", "Maître déconnecté");
       this.retry();
     };

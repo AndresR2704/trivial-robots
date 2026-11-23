@@ -10,8 +10,16 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
+#include <esp_arduino_version.h>
 #include <WebSocketsServer.h>
 #include <trivial_protocol.h>   // firmware/lib/TrivialProtocol
+
+// 1er argument du callback de réception ESP-NOW selon la version du cœur.
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+typedef const esp_now_recv_info_t* RecvSource;
+#else
+typedef const uint8_t* RecvSource;
+#endif
 
 // ---------- Réglages ----------
 const char* AP_SSID = "TrivialRobots";
@@ -22,6 +30,10 @@ const int   LED_PIN = 2;               // LED intégrée (la plupart des DevKit)
 WebSocketsServer ws(WS_PORT);
 const uint8_t BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 uint8_t seqNum = 0;
+
+// Dernière réception d'un heartbeat par robot (index 1..TR_ROBOT_COUNT).
+volatile uint32_t lastSeen[TR_ROBOT_COUNT + 1] = {0};
+uint32_t lastStatusBroadcast = 0;
 
 // ---------- ESP-NOW ----------
 bool sendToRobots(uint8_t target, uint8_t cmd) {
@@ -38,6 +50,38 @@ bool sendToRobots(uint8_t target, uint8_t cmd) {
   digitalWrite(LED_PIN, HIGH); delay(10); digitalWrite(LED_PIN, LOW);
   Serial.printf("[ESPNOW] target=%u cmd=%u seq=%u %s\n", target, cmd, p.seq, ok ? "OK" : "ERR");
   return ok;
+}
+
+// ---------- Réception ESP-NOW (heartbeats des robots) ----------
+void onEspNowRecv(RecvSource src, const uint8_t* data, int len) {
+  (void)src;
+  if (len != (int)sizeof(TrPacket)) return;
+  TrPacket p;
+  memcpy(&p, data, sizeof(p));
+  if (p.magic != TR_MAGIC) return;
+  if (p.cmd != TR_CMD_HEARTBEAT) return;
+  if (p.target < 1 || p.target > TR_ROBOT_COUNT) return;
+  lastSeen[p.target] = millis();
+}
+
+// Construit "STATUS 1,0,1,1,0,1" : 1 si robot vu < TR_ONLINE_MS, 0 sinon.
+void buildStatus(char* out, size_t cap) {
+  size_t n = 0;
+  int w = snprintf(out + n, cap - n, "STATUS ");
+  if (w > 0) n += (size_t)w;
+  uint32_t now = millis();
+  for (uint8_t i = 1; i <= TR_ROBOT_COUNT; i++) {
+    bool on = lastSeen[i] != 0 && (now - lastSeen[i] < TR_ONLINE_MS);
+    w = snprintf(out + n, cap - n, "%s%d", i > 1 ? "," : "", on ? 1 : 0);
+    if (w > 0) n += (size_t)w;
+  }
+}
+
+// Diffuse STATUS à tous les clients WebSocket.
+void broadcastStatus() {
+  char msg[48];
+  buildStatus(msg, sizeof(msg));
+  ws.broadcastTXT(msg);
 }
 
 // ---------- Parsing des commandes texte ----------
@@ -87,10 +131,14 @@ String handleCommand(String line) {
 // ---------- WebSocket ----------
 void onWsEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
-    case WStype_CONNECTED:
+    case WStype_CONNECTED: {
       Serial.printf("[WS] client %u connecte\n", num);
       ws.sendTXT(num, "HELLO TRIVIAL-MASTER 1");
+      char msg[48];
+      buildStatus(msg, sizeof(msg));
+      ws.sendTXT(num, msg);
       break;
+    }
     case WStype_DISCONNECTED:
       Serial.printf("[WS] client %u deconnecte\n", num);
       break;
@@ -129,6 +177,7 @@ void setup() {
   peer.ifidx   = WIFI_IF_AP;
   peer.encrypt = false;
   esp_now_add_peer(&peer);
+  esp_now_register_recv_cb(onEspNowRecv);
 
   seqNum = (uint8_t)esp_random();   // évite les collisions de seq après un reboot
 
@@ -139,6 +188,13 @@ void setup() {
 
 void loop() {
   ws.loop();
+
+  // Diffuse l'état des robots environ une fois par seconde.
+  uint32_t now = millis();
+  if (now - lastStatusBroadcast >= TR_HEARTBEAT_MS) {
+    lastStatusBroadcast = now;
+    broadcastStatus();
+  }
 
   // Commandes de test depuis le moniteur série (ex: "MOVE 1 UP", "ANIM")
   if (Serial.available()) {

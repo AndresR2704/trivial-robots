@@ -26,6 +26,8 @@ export function createSetupScreen(ctx: AppContext): Screen {
       row.className = "team-row";
       const dot = document.createElement("div");
       dot.className = "team-dot";
+      dot.dataset.robot = String(t.robot);
+      if (!link.online[t.robot - 1]) dot.dataset.offline = "1";
       dot.style.background = robotColor(t.robot);
       dot.textContent = "R" + t.robot;
 

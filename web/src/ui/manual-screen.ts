@@ -12,8 +12,11 @@ export function createManualScreen(ctx: AppContext): Screen {
 
   function render(): void {
     const seg = $("manual-robots");
-    seg.innerHTML = TARGETS.map(o =>
-      `<button class="ghost ${o === target ? "sel" : ""}" data-r="${o}">${o === "ALL" ? "Tous" : "R" + o}</button>`).join("");
+    seg.innerHTML = TARGETS.map(o => {
+      const off = typeof o === "number" && !link.online[o - 1] ? ` data-offline="1"` : "";
+      const robot = typeof o === "number" ? ` data-robot="${o}"` : "";
+      return `<button class="ghost ${o === target ? "sel" : ""}" data-r="${o}"${robot}${off}>${o === "ALL" ? "Tous" : "R" + o}</button>`;
+    }).join("");
     seg.querySelectorAll<HTMLElement>("[data-r]").forEach(b => b.onclick = () => {
       const r = b.dataset.r as string;
       target = r === "ALL" ? "ALL" : Number(r);

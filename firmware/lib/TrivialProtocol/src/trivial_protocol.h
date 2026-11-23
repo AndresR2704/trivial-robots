@@ -7,6 +7,9 @@
 #define TR_MAGIC        0xA7   // octet d'identification des paquets
 #define TR_TARGET_ALL   0xFF   // cible "tous les robots"
 #define TR_REPEAT       3      // chaque paquet est émis 3 fois (broadcast sans ACK)
+#define TR_ROBOT_COUNT  6      // nombre de robots sur le plateau
+#define TR_HEARTBEAT_MS 1000   // période d'émission du heartbeat (robot -> maître)
+#define TR_ONLINE_MS    3000   // au-delà de ce silence, un robot est considéré hors-ligne
 
 enum TrCmd : uint8_t {
   TR_CMD_UP    = 1,  // une case vers le haut du plateau
@@ -16,11 +19,12 @@ enum TrCmd : uint8_t {
   TR_CMD_ANIM  = 5,  // animation de départ
   TR_CMD_STOP  = 6,  // arrêt immédiat + vidage de la file
   TR_CMD_WIN   = 7,  // animation de victoire
+  TR_CMD_HEARTBEAT = 8, // robot -> maître : "je suis là". Dans ce cas target = ID source.
 };
 
 typedef struct __attribute__((packed)) {
   uint8_t magic;   // TR_MAGIC
-  uint8_t target;  // 1..6 ou TR_TARGET_ALL
+  uint8_t target;  // 1..6 ou TR_TARGET_ALL (destination) ; ID source pour TR_CMD_HEARTBEAT
   uint8_t cmd;     // TrCmd
   uint8_t seq;     // numéro de séquence (dédoublonnage des répétitions)
 } TrPacket;

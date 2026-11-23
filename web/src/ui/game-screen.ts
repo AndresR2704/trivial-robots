@@ -18,11 +18,11 @@ export function createGameScreen(ctx: AppContext): Screen {
   function renderScoreboard(): void {
     const s = st();
     $("scoreboard").innerHTML = s.teams.map((t, i) => `
-      <div class="score ${i === s.current ? "active" : ""}" style="--team:${robotColor(t.robot)}">
+      <div class="score ${i === s.current ? "active" : ""}" data-robot="${t.robot}"${link.online[t.robot - 1] ? "" : ` data-offline="1"`} style="--team:${robotColor(t.robot)}">
         ${pieSVG(t.wedges)}
         <div class="info">
           <div class="name">${esc(t.name)}</div>
-          <div class="robot" style="color:${robotColor(t.robot)}">Robot ${t.robot} · ${t.wedges.filter(Boolean).length}/6</div>
+          <div class="robot" style="color:${robotColor(t.robot)}">Robot ${t.robot} · ${t.wedges.filter(Boolean).length}/6<span class="offline-tag"> · hors-ligne</span></div>
         </div>
       </div>`).join("");
   }
