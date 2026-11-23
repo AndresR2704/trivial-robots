@@ -11,6 +11,7 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <esp_arduino_version.h>
+#include <ArduinoOTA.h>
 #include <WebSocketsServer.h>
 #include <trivial_protocol.h>   // firmware/lib/TrivialProtocol
 
@@ -22,8 +23,10 @@ typedef const uint8_t* RecvSource;
 #endif
 
 // ---------- Réglages ----------
-const char* AP_SSID = "TrivialRobots";
-const char* AP_PASS = "trivial2026";   // 8 caractères minimum
+const char* AP_SSID  = "TrivialRobots";
+const char* AP_PASS  = "trivial2026";  // 8 caractères minimum
+const char* OTA_PASS = "trivial-ota-2026";
+const char* OTA_HOSTNAME = "trivial-master";
 const int   WS_PORT = 81;
 const int   LED_PIN = 2;               // LED intégrée (la plupart des DevKit)
 
@@ -31,9 +34,69 @@ WebSocketsServer ws(WS_PORT);
 const uint8_t BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 uint8_t seqNum = 0;
 
-// Dernière réception d'un heartbeat par robot (index 1..TR_ROBOT_COUNT).
+// Dernière réception d'un heartbeat (ou ACK) par robot (index 1..TR_ROBOT_COUNT).
 volatile uint32_t lastSeen[TR_ROBOT_COUNT + 1] = {0};
 uint32_t lastStatusBroadcast = 0;
+
+// ---------- Suivi des commandes en attente d'ACK ----------
+// Chaque entrée = commande envoyée à UN robot, en attente d'accusé de réception.
+// Les commandes ALL ne sont pas suivies (coût trop élevé, impact plus faible).
+#define PENDING_SIZE 8
+struct Pending {
+  bool     active;
+  uint8_t  seq;
+  uint8_t  target;   // 1..6
+  uint8_t  cmd;
+  uint32_t lastSent;
+  uint8_t  attempts; // nombre total d'émissions (la première comprise)
+};
+Pending pending[PENDING_SIZE];
+
+void trackPending(uint8_t seq, uint8_t target, uint8_t cmd) {
+  for (int i = 0; i < PENDING_SIZE; i++) {
+    if (!pending[i].active) {
+      pending[i] = {true, seq, target, cmd, millis(), 1};
+      return;
+    }
+  }
+  Serial.println("[ACK] pending plein, commande non suivie");
+}
+
+void handleAck(uint8_t src, uint8_t seq) {
+  for (int i = 0; i < PENDING_SIZE; i++) {
+    if (pending[i].active && pending[i].seq == seq && pending[i].target == src) {
+      pending[i].active = false;
+      return;
+    }
+  }
+}
+
+// Retransmet les commandes dont l'ACK tarde. Après TR_ACK_MAX_TRIES tentatives,
+// abandonne et prévient la tablette via "NACK <robot> <cmd>".
+void retransmitPending() {
+  uint32_t now = millis();
+  for (int i = 0; i < PENDING_SIZE; i++) {
+    if (!pending[i].active) continue;
+    if (now - pending[i].lastSent < TR_ACK_TIMEOUT_MS) continue;
+    if (pending[i].attempts >= TR_ACK_MAX_TRIES) {
+      char msg[24];
+      snprintf(msg, sizeof(msg), "NACK %u %u", pending[i].target, pending[i].cmd);
+      Serial.printf("[ACK] abandon : %s\n", msg);
+      ws.broadcastTXT(msg);
+      pending[i].active = false;
+      continue;
+    }
+    TrPacket p = {TR_MAGIC, pending[i].target, pending[i].cmd, pending[i].seq};
+    for (int r = 0; r < TR_REPEAT; r++) {
+      esp_now_send(BROADCAST, (const uint8_t*)&p, sizeof(p));
+      delay(4);
+    }
+    pending[i].lastSent = now;
+    pending[i].attempts++;
+    Serial.printf("[ACK] retransmission robot=%u seq=%u try=%u\n",
+                  pending[i].target, pending[i].seq, pending[i].attempts);
+  }
+}
 
 // ---------- ESP-NOW ----------
 bool sendToRobots(uint8_t target, uint8_t cmd) {
@@ -48,20 +111,22 @@ bool sendToRobots(uint8_t target, uint8_t cmd) {
     delay(4);
   }
   digitalWrite(LED_PIN, HIGH); delay(10); digitalWrite(LED_PIN, LOW);
+  if (target != TR_TARGET_ALL) trackPending(p.seq, target, cmd);
   Serial.printf("[ESPNOW] target=%u cmd=%u seq=%u %s\n", target, cmd, p.seq, ok ? "OK" : "ERR");
   return ok;
 }
 
-// ---------- Réception ESP-NOW (heartbeats des robots) ----------
+// ---------- Réception ESP-NOW (heartbeats + ACK des robots) ----------
 void onEspNowRecv(RecvSource src, const uint8_t* data, int len) {
   (void)src;
   if (len != (int)sizeof(TrPacket)) return;
   TrPacket p;
   memcpy(&p, data, sizeof(p));
   if (p.magic != TR_MAGIC) return;
-  if (p.cmd != TR_CMD_HEARTBEAT) return;
+  if (p.cmd != TR_CMD_HEARTBEAT && p.cmd != TR_CMD_ACK) return;
   if (p.target < 1 || p.target > TR_ROBOT_COUNT) return;
-  lastSeen[p.target] = millis();
+  lastSeen[p.target] = millis();   // une liaison active vaut un heartbeat
+  if (p.cmd == TR_CMD_ACK) handleAck(p.target, p.seq);
 }
 
 // Construit "STATUS 1,0,1,1,0,1" : 1 si robot vu < TR_ONLINE_MS, 0 sinon.
@@ -162,7 +227,8 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
 
   WiFi.mode(WIFI_AP_STA);
-  WiFi.softAP(AP_SSID, AP_PASS, TR_WIFI_CHANNEL, 0, 4);
+  // 8 clients max : 1 tablette + 6 robots (pour OTA) + marge.
+  WiFi.softAP(AP_SSID, AP_PASS, TR_WIFI_CHANNEL, 0, 8);
   Serial.printf("AP \"%s\" sur canal %d, IP %s\n", AP_SSID, TR_WIFI_CHANNEL,
                 WiFi.softAPIP().toString().c_str());
 
@@ -184,10 +250,21 @@ void setup() {
   ws.begin();
   ws.onEvent(onWsEvent);
   Serial.printf("WebSocket pret sur ws://%s:%d\n", WiFi.softAPIP().toString().c_str(), WS_PORT);
+
+  // ---------- OTA ----------
+  ArduinoOTA.setHostname(OTA_HOSTNAME);
+  ArduinoOTA.setPassword(OTA_PASS);
+  ArduinoOTA.onStart([]() { Serial.println("[OTA] debut"); });
+  ArduinoOTA.onEnd([]()  { Serial.println("[OTA] fin"); });
+  ArduinoOTA.onError([](ota_error_t err) { Serial.printf("[OTA] erreur %u\n", err); });
+  ArduinoOTA.begin();
+  Serial.printf("OTA pret, hostname %s\n", OTA_HOSTNAME);
 }
 
 void loop() {
   ws.loop();
+  ArduinoOTA.handle();
+  retransmitPending();
 
   // Diffuse l'état des robots environ une fois par seconde.
   uint32_t now = millis();

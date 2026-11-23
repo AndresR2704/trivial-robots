@@ -13,7 +13,15 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <esp_arduino_version.h>
+#include <ArduinoOTA.h>
 #include <trivial_protocol.h>   // firmware/lib/TrivialProtocol
+
+// ---------- WiFi maître + OTA ----------
+// Le robot s'associe au point d'accès du maître pour obtenir une IP et accepter
+// les mises à jour OTA. ESP-NOW continue à fonctionner en parallèle.
+const char* MASTER_SSID = "TrivialRobots";
+const char* MASTER_PASS = "trivial2026";
+const char* OTA_PASS    = "trivial-ota-2026";
 
 // 1er argument du callback de réception ESP-NOW selon la version du cœur.
 // Type déclaré ici (avant toute fonction) pour que les prototypes générés
@@ -66,6 +74,16 @@ void sendHeartbeat() {
   p.seq    = ++hbSeq;
   esp_now_send(BROADCAST, (const uint8_t*)&p, sizeof(p));
   lastHeartbeat = millis();
+}
+
+// Accuse réception d'une commande (seq échoé) pour que le maître arrête de la retransmettre.
+void sendAck(uint8_t seq) {
+  TrPacket a;
+  a.magic  = TR_MAGIC;
+  a.target = ROBOT_ID;
+  a.cmd    = TR_CMD_ACK;
+  a.seq    = seq;
+  esp_now_send(BROADCAST, (const uint8_t*)&a, sizeof(a));
 }
 
 // ---------- Moteurs ----------
@@ -141,8 +159,15 @@ void handlePacket(const uint8_t* data, int len) {
   TrPacket p;
   memcpy(&p, data, sizeof(p));
   if (p.magic != TR_MAGIC) return;
+  // Trafic inter-robots (heartbeats, ACK d'autres robots) : on ignore.
+  if (p.cmd == TR_CMD_HEARTBEAT || p.cmd == TR_CMD_ACK) return;
   if (p.target != ROBOT_ID && p.target != TR_TARGET_ALL) return;
-  if (p.seq == lastSeq) return;      // répétition du même paquet
+
+  // On ACK même les duplicatas : si le premier ACK se perd le maître retransmet,
+  // il faut lui répondre à nouveau pour qu'il arrête.
+  sendAck(p.seq);
+
+  if (p.seq == lastSeq) return;      // répétition du même paquet : ne pas exécuter deux fois
   lastSeq = p.seq;
 
   if (p.cmd == TR_CMD_STOP) {
@@ -164,8 +189,11 @@ void setup() {
 
   cmdQueue = xQueueCreate(16, sizeof(uint8_t));
 
+  // Association au point d'accès du maître (pour l'OTA). Non bloquant :
+  // ESP-NOW fonctionne de toute façon grâce au canal forcé ci-dessous.
   WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
+  WiFi.setAutoReconnect(true);
+  WiFi.begin(MASTER_SSID, MASTER_PASS);
   esp_wifi_set_promiscuous(true);
   esp_wifi_set_channel(TR_WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
   esp_wifi_set_promiscuous(false);
@@ -187,8 +215,18 @@ void setup() {
 
   hbSeq = (uint8_t)esp_random();
 
-  Serial.printf("Robot %d pret, MAC %s, canal %d\n", ROBOT_ID,
-                WiFi.macAddress().c_str(), TR_WIFI_CHANNEL);
+  // ---------- OTA ----------
+  char hostname[24];
+  snprintf(hostname, sizeof(hostname), "trivial-robot-%d", ROBOT_ID);
+  ArduinoOTA.setHostname(hostname);
+  ArduinoOTA.setPassword(OTA_PASS);
+  ArduinoOTA.onStart([]() { stopMotors(); Serial.println("[OTA] debut"); });
+  ArduinoOTA.onEnd([]()  { Serial.println("[OTA] fin"); });
+  ArduinoOTA.onError([](ota_error_t err) { Serial.printf("[OTA] erreur %u\n", err); });
+  ArduinoOTA.begin();
+
+  Serial.printf("Robot %d pret, MAC %s, canal %d, hostname %s\n", ROBOT_ID,
+                WiFi.macAddress().c_str(), TR_WIFI_CHANNEL, hostname);
   blink(ROBOT_ID, 150);   // la LED clignote ID fois au démarrage
   sendHeartbeat();        // annonce immédiatement sa présence
 }
@@ -196,8 +234,8 @@ void setup() {
 void loop() {
   uint8_t cmd;
   // Attente d'une commande avec un timeout court : on reprend la main
-  // régulièrement pour émettre le heartbeat, même sans mouvement.
-  if (xQueueReceive(cmdQueue, &cmd, pdMS_TO_TICKS(TR_HEARTBEAT_MS)) == pdTRUE) {
+  // régulièrement pour émettre le heartbeat et laisser tourner l'OTA.
+  if (xQueueReceive(cmdQueue, &cmd, pdMS_TO_TICKS(50)) == pdTRUE) {
     Serial.printf("cmd %u\n", cmd);
     switch (cmd) {
       case TR_CMD_UP:    moveDir(0); break;
@@ -209,5 +247,6 @@ void loop() {
       case TR_CMD_STOP:  stopMotors(); break;
     }
   }
+  ArduinoOTA.handle();
   if (millis() - lastHeartbeat >= TR_HEARTBEAT_MS) sendHeartbeat();
 }

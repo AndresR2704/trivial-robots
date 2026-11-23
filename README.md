@@ -35,11 +35,23 @@ Carte **ESP32 Dev Module**. Deux façons de compiler :
 ### Option A : PlatformIO (recommandé)
 Installer PlatformIO (extension VS Code ou `pip install platformio`), puis :
 ```sh
-cd firmware/maitre && pio run -t upload            # maître
+cd firmware/maitre && pio run -t upload            # maître (USB)
 cd firmware/robot  && pio run -e robot3 -t upload  # robot n°3 (robot1 … robot6)
 pio device monitor                                 # moniteur série 115200
 ```
 Bibliothèques et protocole commun sont gérés automatiquement. Chaque environnement `robotN` fixe `ROBOT_ID = N` : plus besoin de modifier le code pour chaque robot.
+
+### OTA (mise à jour par WiFi)
+Une fois chaque ESP32 flashé au moins une fois par USB, les suivantes passent par WiFi :
+```sh
+cd firmware/maitre && pio run -e maitre-ota -t upload   # maître
+cd firmware/robot  && pio run -e robot3-ota -t upload   # robot n°3
+```
+Pré-requis :
+- Le maître doit être en route (il expose le WiFi `TrivialRobots`), et le PC connecté dessus.
+- Les robots doivent être allumés : au boot ils s'associent au point d'accès du maître pour être joignables.
+- Mot de passe OTA : `trivial-ota-2026` (modifiable dans `maitre.ino` et `robot.ino` — doit rester identique partout).
+- Hostnames : `trivial-master.local`, `trivial-robot-1.local` … `trivial-robot-6.local`. Si mDNS ne fonctionne pas (Windows sans Bonjour), remplacer `upload_port` dans `platformio.ini` par l'IP affichée dans les logs du maître.
 
 ### Option B : IDE Arduino
 1. Copier le dossier `firmware/lib/TrivialProtocol` dans `Documents/Arduino/libraries/` (à refaire si le protocole change).
@@ -123,5 +135,12 @@ Pas de répétition tant qu'une catégorie n'est pas épuisée.
 | `STOP [id\|ALL]` | arrêt + vidage de la file de commandes |
 | `PING` | répond `PONG` (keepalive) |
 
-Réponses du maître : `OK`, `PONG`, `ERR ...`.
-Maître -> robots : paquet ESP-NOW de 4 octets `{magic, target, cmd, seq}` émis 3 fois, dédoublonné par `seq` côté robot (format défini dans `firmware/lib/TrivialProtocol/src/trivial_protocol.h`).
+Réponses immédiates du maître : `OK`, `PONG`, `ERR ...`.
+
+Messages asynchrones poussés par le maître :
+| Message | Effet |
+|---|---|
+| `STATUS a,b,c,d,e,f` | état en ligne/hors-ligne de chaque robot (1 par seconde, et à chaque nouvelle connexion WebSocket) |
+| `NACK <id> <cmd>` | une commande ciblée (hors `ALL`) n'a pas reçu d'ACK après `TR_ACK_MAX_TRIES` tentatives ; `cmd` est l'opcode de `TrCmd` (1..7) |
+
+Maître -> robots : paquet ESP-NOW de 4 octets `{magic, target, cmd, seq}` émis 3 fois, dédoublonné par `seq` côté robot (format défini dans `firmware/lib/TrivialProtocol/src/trivial_protocol.h`). Le robot répond par un paquet `TR_CMD_ACK` (avec `seq` échoé) pour chaque commande reçue ; sans ACK, le maître retransmet jusqu'à 4 fois puis abandonne et envoie `NACK` sur WebSocket. Les robots envoient aussi un heartbeat chaque seconde (`TR_CMD_HEARTBEAT`) pour que le maître publie `STATUS`.

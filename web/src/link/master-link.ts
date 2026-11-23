@@ -23,6 +23,17 @@ const RX_TIMEOUT_MS = 10000; // silence au-delà duquel la connexion est relanc�
 
 const ALL_OFFLINE: readonly boolean[] = Object.freeze(new Array(ROBOT_COUNT).fill(false));
 
+/** Libellés des commandes (voir TrCmd côté firmware) pour les notifications NACK. */
+const CMD_LABELS: Record<number, string> = {
+  1: "déplacement haut",
+  2: "déplacement bas",
+  3: "déplacement gauche",
+  4: "déplacement droite",
+  5: "animation",
+  6: "arrêt",
+  7: "animation victoire",
+};
+
 export class MasterLink {
   url: string;
   open = false;
@@ -79,6 +90,12 @@ export class MasterLink {
         while (online.length < ROBOT_COUNT) online.push(false);
         this.online = online.slice(0, ROBOT_COUNT);
         this.events.onRobots(this.online);
+        return;
+      }
+      if (m.startsWith("NACK ")) {
+        const [robot, cmdByte] = m.slice(5).split(" ");
+        const label = CMD_LABELS[Number(cmdByte)] || `commande ${cmdByte}`;
+        this.events.notify(`Robot ${robot} n'a pas reçu : ${label}`);
         return;
       }
       if (m.startsWith("ERR")) this.events.notify("Maître : " + m);
