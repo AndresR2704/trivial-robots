@@ -58,7 +58,7 @@ Pour rester clair et accessible à toute l'équipe selon le rôle de chacun, la 
 
 | Guide | Public cible | Contenu principal |
 |---|---|---|
-| [**Squelette Robot (`firmware/robot_squelette/README.md`)**](firmware/robot_squelette/README.md) | Étudiants codant les robots | Guide pas à pas des 7 fonctions `TODO` en C/C++ (PWM, moteurs, `moveDir`, animations), câblage, calibration sur plateau |
+| [**Squelette Robot (`firmware/robot_squelette/README.md`)**](firmware/robot_squelette/README.md) | Équipe codant les robots | Guide pas à pas des 7 fonctions `TODO` en C/C++ (PWM, moteurs, `moveDir`, animations), câblage, calibration sur plateau |
 | [**Firmwares & OTA (`firmware/README.md`)**](firmware/README.md) | Équipe embarquée | Compilation PlatformIO / IDE Arduino, flash USB du maître, **explication complète de l'OTA** et dépannage réseau |
 | [**Protocole & `TrivialProtocol` (`firmware/lib/TrivialProtocol/README.md`)**](firmware/lib/TrivialProtocol/README.md) | Curieux / maintenance réseau | Commandes WebSocket, paquet binaire `TrPacket` (4 octets), `TrCmd`, fiabilité (`ACK`, retries, `NACK`, `HEARTBEAT`, FreeRTOS) et diagrammes |
 | [**APK Android & SDK (`android-app/README.md`)**](android-app/README.md) | Équipe application / tablette | Automatisation CI/CD GitHub Actions & Gradle, **installation complète du SDK Android** (Android Studio ou CLI), signature release, dev web local |
