@@ -1,5 +1,5 @@
 // trivial_protocol.h : protocole ESP-NOW commun au maître et aux robots.
-// Source UNIQUE, partagée par firmware/maitre et firmware/robot (bibliothèque TrivialProtocol).
+// Source UNIQUE, partagée par firmware/maitre et firmware/robot_squelette (bibliothèque TrivialProtocol).
 #pragma once
 #include <stdint.h>
 
