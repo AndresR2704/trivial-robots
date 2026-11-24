@@ -100,62 +100,68 @@ void sendAck(uint8_t seq) {
 //   in1, in2 : les deux broches PWM du moteur (ex: L_IN1, L_IN2)
 //   speed    : -255 (marche arrière à fond) à +255 (avant à fond), 0 = stop
 //   invert   : si true, inverser le sens (moteur câblé à l'envers)
-//
-// Indices :
-//  - analogWrite(pin, val) règle le PWM (val : 0..255).
-//  - Convention à utiliser :
-//      speed >= 0 : analogWrite(in1, speed); analogWrite(in2, 0);
-//      speed <  0 : analogWrite(in1, 0);     analogWrite(in2, -speed);
-//  - Si invert est vrai, inverse le signe de speed avant tout.
-//  - Pense à borner la valeur finale : constrain(speed, -255, 255).
 void motorRaw(int in1, int in2, int speed, bool invert) {
-  // TODO
+
+    if (invert) {
+        speed -= speed;
+    }
+
+    speed = constrain(speed, -255, 255);
+
+    if (speed >= 0) {
+        analogWrite(in1, speed);
+        analogWrite(in2, 0);
+    }
+    else {
+        analogWrite(in1, 0);
+        analogWrite(in2, -speed);
+    }
 }
 
 // Pilote le moteur gauche en tenant compte de INVERT_L.
-// Astuce : juste un appel à motorRaw avec les bons arguments.
 void motorL(int s) {
-  // TODO
+  motorRaw(IN1_L, IN2_L, s, INVERT_L);
 }
 
 // Pilote le moteur droit en tenant compte de INVERT_R.
 void motorR(int s) {
-  // TODO
+  motorRaw(IN1_R, IN2_R, s, INVERT_R);
 }
 
 // Arrête immédiatement les deux moteurs.
 // IMPORTANT : cette fonction est aussi appelée au début d'une mise à jour OTA
 // et sur la commande STOP venant de la tablette. Il faut qu'elle fonctionne.
 void stopMotors() {
-  // TODO
+  motorL(0);
+  motorR(0);
 }
 
 // Active les deux moteurs pendant `ms` millisecondes, puis coupe tout.
 // Ajoute une petite pause PAUSE_MS après l'arrêt (temps que le robot se stabilise).
-//
-// Indices :
-//   motorL(l); motorR(r);
-//   delay(ms);
-//   stopMotors();
-//   delay(PAUSE_MS);
 void drive(int l, int r, unsigned long ms) {
-  // TODO
+  motorL(l);
+  motorR(r);
+
+  delay(ms);
+
+  stopMotors();
+  delay(PAUSE_MS);
 }
 
 // Avance d'UNE case tout droit (utilise SPEED_L, SPEED_R, CELL_MS).
 void forwardCell() {
-  // TODO
+  drive(SPEED_L, SPEED_R, CELL_MS);
 }
 
 // Pivote de 90° sur place vers la droite.
 // Astuce : un moteur avance, l'autre recule, durée = TURN90_MS.
 void turnRight90() {
-  // TODO
+  drive(TURN_SPEED, -TURN_SPEED, TURN90_MS);
 }
 
 // Pivote de 90° sur place vers la gauche.
 void turnLeft90() {
-  // TODO
+  drive(-TURN_SPEED, TURN_SPEED, TURN90_MS);
 }
 
 // =============================================================
